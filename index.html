@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Bitcoinflation</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="keywords" content="bitcoin, inflation" />
+    <meta name="Robots" content="index,follow" />
+    <meta name="description" content="Tracking the inflation rate of Bitcoin's money supply" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Bitcoinflation" />
+    <meta name="twitter:description" content="Tracking the inflation rate of Bitcoin's money supply." />
+    <meta name="twitter:image" content="" />
+
+    <script type="text/javascript">
+      window.PlotlyConfig = {MathJaxConfig: 'local'};
+    </script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  </head>
+
+  <body>
+    <div id="86efc581-cb0f-40c8-93df-519ce867d46b" class="plotly-graph-div" style="height:100%; width:100%;"></div>
+    <script type="text/javascript">
+      var layout = {
+
+        paper_bgcolor: 'transparent',
+        plot_bgcolor: 'transparent',
+
+
+        // chart dimensions responsive, see CSS
+        // height: 700,
+        margin: { l: 50, r: 50, b: 45, t: 25, pad: 0 },
+
+
+        hovermode: 'closest',
+        showlegend: true,
+
+
+        legend: {
+          orientation: "h",
+          x: 0.5,
+          xanchor: "center",
+        },
+
+
+       // X-axis styling
+        xaxis: {
+
+          range: ['2009-01-03','2100-01-01'],
+
+          showgrid: false,
+          //autorange: true,
+          //rangeslider: {range: ['2019-01-03 12:00', '2019-02-15 12:00']},
+
+          // vertical crosshair
+          showspikes:true,
+          spikemode:'across',
+          spikethickness:0.5,
+          spikecolor:'#333',
+          spikedash:'line',
+        },
+
+
+
+
+      // Y-axis styling
+        yaxis: {
+
+          title:       '',
+          type:        'log',
+          hoverformat: '.4r',
+          titlefont: {
+              family: 'Open Sans, Arial',
+              weight: 500,
+              size: 12,
+              color: '#666'
+          },
+          tickfont: {
+            size:9,
+            color: '#666',
+          },
+          tickwidth: 5,
+          ticklen: 5,
+          tickcolor: '#999',
+          dtick: 1,
+
+          showgrid: false,
+          //showgrid: false,
+
+          range: [-0.5,3.5],
+
+
+          zeroline: false,
+
+          // horizontal crosshair
+          showspikes:true,
+          spikemode:'across',
+          spikethickness:0.5,
+          spikecolor:'#333',
+          spikedash:'line',
+        }
+      }
+
+      var inflation = {
+         x: [],
+         y: [],
+         marker: {
+            opacity: 0
+         },
+         line: {
+            color:'',
+            width: 1,
+            dash: ''
+         },
+         opacity:0.75,
+            showlegend:true,
+
+         name:'Inflation Rate',   hoverinfo:'name+y',
+
+         yaxis:'y',
+
+         hoverlabel: {
+            bordercolor:'#FFF',
+            font: { family: 'Open Sans, Arial', weight: 500, size: 10, },
+         },
+      }
+
+      // Load historical inflation data from CSV
+      //https://jlopp.github.io/bitcoinflation/historic-btc-inflation-rate.csv
+
+      // Fill in gap between last historical CSV data and today from glassnode API
+      https://api.glassnode.com/v1/metrics/supply/inflation_rate?a=btc&api_key=2CU0VqMuRLqcqbD3MLUK1tx02Zy
+
+      // Fill in future projected inflation rate based upon mining subsidy
+
+      // Create chart
+      Plotly.newPlot('chart', [inflation], layout, {responsive: true});
+    </script>
+  </body>
+</html>

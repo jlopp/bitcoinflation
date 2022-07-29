@@ -21,7 +21,7 @@
   </head>
 
   <body>
-    <div id="86efc581-cb0f-40c8-93df-519ce867d46b" class="plotly-graph-div" style="height:100%; width:100%;"></div>
+    <div id="chart" class="plotly-graph-div" style="height:100%; width:100%;"></div>
     <script type="text/javascript">
       var layout = {
 
@@ -61,9 +61,6 @@
           spikecolor:'#333',
           spikedash:'line',
         },
-
-
-
 
       // Y-axis styling
         yaxis: {
@@ -129,56 +126,66 @@
 
       // Load historical inflation data from CSV
       //https://jlopp.github.io/bitcoinflation/historic-btc-inflation-rate.csv
-      dfd.readCSV("https://jlopp.github.io/bitcoinflation/historic-btc-inflation-rate.csv")
-        .then(df => {
+      async function getInflationRates() {
+        var historic_rates = await dfd.readCSV("https://jlopp.github.io/bitcoinflation/historic-btc-inflation-rate.csv")
+          .then(df => {
+              return df.values;
+          }).catch(err => {
+              console.log(err);
+          });
 
-            //do something like display descriptive statistics
-            df.describe().print()
-            
-        }).catch(err => {
-            console.log(err);
-        });
+        // determine unix timestamp in seconds of last day in static CSV for next API call
+        var newestDate = new Date(historic_rates[historic_rates.length - 1][0]);
+        var timestamp = Math.floor(newestDate.getTime() / 1000);
 
-      // determine unix timestamp in seconds of last day in static CSV for next API call
-      var oldestDate = new Date(historic_rates[historic_rates.length - 1][0]);
-      var timestamp = Math.floor(oldestDate.getTime() / 1000);
+        // Fill in gap between last historical CSV data and today from glassnode API
+        var newer_rates = await dfd.readCSV("https://api.glassnode.com/v1/metrics/supply/inflation_rate?a=btc&api_key=2CU0VqMuRLqcqbD3MLUK1tx02Zy&i=24h&f=csv&timestamp_format=humanized&s=" + timestamp)
+          .then(df => {
+            return df.values;
+          }).catch(err => {
+              console.log(err);
+          });
 
-      // Fill in gap between last historical CSV data and today from glassnode API
-      dfd.readCSV("https://api.glassnode.com/v1/metrics/supply/inflation_rate?a=btc&api_key=2CU0VqMuRLqcqbD3MLUK1tx02Zy&i=24h&f=csv&timestamp_format=humanized&s=" + timestamp)
-        .then(df => {
+        // add new rates to historic rates array
+        newer_rates.forEach(element => historic_rates.push(element));
 
-            //do something like display descriptive statistics
-            df.describe().print()
-            
-        }).catch(err => {
-            console.log(err);
-        });
+        // Fill in future projected inflation rate based upon mining subsidy up until Jan 1, 2100
+        var currentHeight = await dfd.readCSV("https://blockstream.info/api/blocks/tip/height")
+          .then(df => {
+            return df.values;
+          }).catch(err => {
+              console.log(err);
+          });
 
-      // add new rates to old rates array; skip first row of CSV is "timestamp,value"
-      for (var i = 1; i < newer_rates.length; i++) {
-        historic_rates[] = newer_rates[i];
+        // determine current supply
+        var currentSupply = await dfd.readCSV("https://docs.glassnode.com/basic-api/endpoints/supply/current?a=btc&api_key=2CU0VqMuRLqcqbD3MLUK1tx02Zy&i=24h&f=csv&timestamp_format=humanized&s=" + nowTimestamp)
+          .then(df => {
+            return df.values;
+          }).catch(err => {
+              console.log(err);
+          });
+        var currentDate = new Date();
+        var nowTimestamp = Math.floor(currentDate.getTime() / 1000);
+
+        // calculate future inflation
+        while (currentDate.getYear() < 2100) {
+          // calculate annualized inflation rate for today at current block height
+          var currentBlockEra = Math.floor(currentHeight / 210000);
+          var currentBlockReward = 50 * Math.pow(0.5, currentBlockEra);
+          var currentInflationRate = (currentBlockReward * 144 * 365) / currentSupply;
+
+          historic_rates.push(array(currentDate.format("Y-M-D"), currentInflationRate));
+
+          // add another 24 hours and 144 blocks
+          currentHeight += 144;
+          currentSupply += currentBlockReward * 144;
+          currentDate.addDay();
+        }
       }
 
-      // Fill in future projected inflation rate based upon mining subsidy up until Jan 1, 2100
-      var currentDate = new Date(historic_rates[historic_rates.length - 1][0]);
-      var currentHeight = ;
-      // https://docs.glassnode.com/basic-api/endpoints/supply
-      var currentSupply = ;
-      while (currentDate.getYear() < 2100) {
-        // calculate annualized inflation rate for today at current block height
-        var currentBlockReward = ;
-        var currentInflationRate = (currentBlockReward * 144 * 365) / currentSupply;
-
-        historic_rates[] = array(currentDate.format("YMD"), currentInflationRate);
-
-        // add another 24 hours and 144 blocks
-        currentHeight += 144;
-        currentSupply += currentBlockReward * 144;
-        currentDate.addDay();
-      }
-
+      var rates = getInflationRates();
       // Create chart
-      Plotly.newPlot('chart', [historic_rates], layout, {responsive: true});
+      Plotly.newPlot('chart', [rates], layout, {responsive: true});
     </script>
   </body>
 </html>

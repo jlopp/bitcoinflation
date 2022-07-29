@@ -16,7 +16,6 @@
       window.PlotlyConfig = {MathJaxConfig: 'local'};
     </script>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/danfojs@1.1.0/lib/bundle.min.js"></script>
 
   </head>
 
@@ -124,69 +123,82 @@
          },
       }
 
+<?php
       // Load historical inflation data from CSV
-      //https://jlopp.github.io/bitcoinflation/historic-btc-inflation-rate.csv
-      async function getInflationRates() {
+      $historic_rates = array();
+      if (($handle = fopen("historic-btc-inflation-rate.csv", "r")) !== FALSE) {
+        // throw away header row
+        fgetcsv($handle, 1000, ",");
 
-        var historic_rates = await dfd.readCSV("https://jlopp.github.io/bitcoinflation/historic-btc-inflation-rate.csv")
-          .then(df => {
-              return df.values;
-          }).catch(err => {
-              console.log(err);
-          });
-
-        // determine unix timestamp in seconds of last day in static CSV for next API call
-        var newestDate = new Date(historic_rates[historic_rates.length - 1][0]);
-        var timestamp = Math.floor(newestDate.getTime() / 1000);
-
-        // Fill in gap between last historical CSV data and today from glassnode API
-        var newer_rates = await dfd.readCSV("https://api.glassnode.com/v1/metrics/supply/inflation_rate?a=btc&api_key=2CU0VqMuRLqcqbD3MLUK1tx02Zy&i=24h&f=csv&timestamp_format=humanized&s=" + timestamp)
-          .then(df => {
-            return df.values;
-          }).catch(err => {
-              console.log(err);
-          });
-
-        // add new rates to historic rates array
-        newer_rates.forEach(element => historic_rates.push(element));
-
-        // Fill in future projected inflation rate based upon mining subsidy up until Jan 1, 2100
-        var currentHeight = await dfd.readCSV("https://blockstream.info/api/blocks/tip/height")
-          .then(df => {
-            return df.values;
-          }).catch(err => {
-              console.log(err);
-          });
-
-        var currentDate = new Date();
-        currentDate.setDate(currentDate.getDate() - 3);
-        var nowTimestamp = Math.floor(currentDate.getTime() / 1000);
-        // determine current supply
-        var currentSupply = await dfd.readCSV("https://api.glassnode.com/v1/metrics/supply/current?a=btc&api_key=2CU0VqMuRLqcqbD3MLUK1tx02Zy&i=24h&f=csv&timestamp_format=humanized&s=" + nowTimestamp)
-          .then(df => {
-            // return the most recent value
-            return df.values[df.values.length - 1][1];
-          }).catch(err => {
-              console.log(err);
-          });
-
-        // calculate future inflation
-        while (currentDate.getYear() < 2100) {
-          // calculate annualized inflation rate for today at current block height
-          var currentBlockEra = Math.floor(currentHeight / 210000);
-          var currentBlockReward = 50 * Math.pow(0.5, currentBlockEra);
-          var currentInflationRate = (currentBlockReward * 144 * 365) / currentSupply;
-
-          historic_rates.push(array(currentDate.format("Y-M-D"), currentInflationRate));
-
-          // add another 24 hours and 144 blocks
-          currentHeight += 144;
-          currentSupply += currentBlockReward * 144;
-          currentDate.addDay();
+        while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
+          $historic_rates[] = $data;
         }
+        fclose($handle);
+      } else {
+        echo "Failed to read historic inflation rate CSV file!";
+        exit(1);
       }
 
-      var rates = getInflationRates();
+      // determine unix timestamp in seconds of last day in static CSV for next API call
+      $newestDate = new DateTime($historic_rates[count($historic_rates) - 1][0]);
+      $timestamp = $newestDate->getTimestamp();
+
+      // Fill in gap between last historical CSV data and today from glassnode API
+      if (($handle = fopen("https://api.glassnode.com/v1/metrics/supply/inflation_rate?a=btc&api_key=2CU0VqMuRLqcqbD3MLUK1tx02Zy&i=24h&f=csv&timestamp_format=humanized&s=$timestamp", "r")) !== FALSE) {
+        // throw away header row
+        fgetcsv($handle, 1000, ",");
+        while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
+          $historic_rates[] = $data;
+        }
+        fclose($handle);
+      } else {
+        echo "Failed to read inflation rate data from glassnode!";
+        exit(1);
+      }
+
+      // Fill in future projected inflation rate based upon mining subsidy up until Jan 1, 2100
+      $currentHeight = 0;
+      if (($handle = fopen("https://blockstream.info/api/blocks/tip/height", "r")) !== FALSE) {
+        $currentHeight = fgetcsv($handle, 1000, ",")[0];
+        fclose($handle);
+      } else {
+        echo "Failed to read current block height from blockstream!";
+        exit(1);
+      }
+
+      $currentDate = new DateTime();
+      $currentDate = $currentDate->sub(new DateInterval('P3D'));
+      $timestamp = $currentDate->getTimestamp();
+
+      // determine current supply; use the most recent value
+      $currentSupply = 0;
+      if (($handle = fopen("https://api.glassnode.com/v1/metrics/supply/current?a=btc&api_key=2CU0VqMuRLqcqbD3MLUK1tx02Zy&i=24h&f=csv&timestamp_format=humanized&s=$timestamp", "r")) !== FALSE) {
+        while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
+          $currentSupply = $data[1];
+        }
+        fclose($handle);
+      } else {
+        echo "Failed to read current money supply from glassnode!";
+        exit(1);
+      }
+
+      // calculate future inflation
+      while ($currentDate->format("Y") < 2100) {
+        // calculate annualized inflation rate for today at current block height
+        $currentBlockEra = floor($currentHeight / 210000);
+        $currentBlockReward = 50 * (0.5 ** currentBlockEra);
+        $currentInflationRate = ($currentBlockReward * 144 * 365) / $currentSupply;
+
+        $historic_rates[] = array($currentDate->format("Y-m-d"), $currentInflationRate);
+
+        // add another day, 144 blocks, and day's worth of block subsidies
+        $currentHeight += 144;
+        $currentSupply += $currentBlockReward * 144;
+        $currentDate->add(new DateInterval('P1D'));
+      }
+      //print_r($historic_rates);
+      echo "var rates = " . json_encode($historic_rates) . ";\n";
+?>
       // Create chart
       Plotly.newPlot('chart', [rates], layout, {responsive: true});
     </script>

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <title>Bitcoinflation</title>
+    <title>Bitcoinflation - Tracking the Inflation Rate of Bitcoin's Money Supply</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="keywords" content="bitcoin, inflation" />
     <meta name="Robots" content="index,follow" />
@@ -12,30 +12,31 @@
     <meta name="twitter:description" content="Tracking the inflation rate of Bitcoin's money supply." />
     <meta name="twitter:image" content="" />
 
-    <script type="text/javascript">
+    <script>
       window.PlotlyConfig = {MathJaxConfig: 'local'};
     </script>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-
+    <style>
+      html, body {
+        width: 99%;
+        height: 99%;
+      }
+    </style>
   </head>
 
   <body>
+    <p style="text-align:center">
+      Bitcoin's rate of monetary inflation is highly predictable. This chart shows the historical actual inflation rate in realtime along with the projected future inflation rate. To learn more about Bitcoin's issuance schedule, check out <a href="https://en.bitcoin.it/wiki/Controlled_supply">this wiki article</a>.
+    </p>
     <div id="chart" class="plotly-graph-div" style="height:100%; width:100%;"></div>
-    <script type="text/javascript">
+    <script>
+      window.PLOTLYENV = window.PLOTLYENV || {};
       var layout = {
-
+        autosize: true,
         paper_bgcolor: 'transparent',
         plot_bgcolor: 'transparent',
-
-
-        // chart dimensions responsive, see CSS
-        // height: 700,
-        margin: { l: 50, r: 50, b: 45, t: 25, pad: 0 },
-
-
         hovermode: 'closest',
         showlegend: true,
-
 
         legend: {
           orientation: "h",
@@ -43,13 +44,13 @@
           xanchor: "center",
         },
 
-
        // X-axis styling
         xaxis: {
 
           range: ['2009-01-03','2100-01-01'],
 
           showgrid: false,
+          automargin: true,
           //autorange: true,
           //rangeslider: {range: ['2019-01-03 12:00', '2019-02-15 12:00']},
 
@@ -64,7 +65,7 @@
       // Y-axis styling
         yaxis: {
 
-          title:       '',
+          title:       'Annualized Inflation Rate %',
           type:        'log',
           hoverformat: '.4r',
           titlefont: {
@@ -83,11 +84,7 @@
           dtick: 1,
 
           showgrid: false,
-          //showgrid: false,
-
-          range: [-0.5,3.5],
-
-
+          //automargin: true,
           zeroline: false,
 
           // horizontal crosshair
@@ -113,7 +110,7 @@
          opacity:0.75,
             showlegend:true,
 
-         name:'Inflation Rate',   hoverinfo:'name+y',
+         name:'Bitcoin Annualized Monetary Supply Inflation Rate',   hoverinfo:'name+y',
 
          yaxis:'y',
 
@@ -148,6 +145,11 @@
         // throw away header row
         fgetcsv($handle, 1000, ",");
         while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
+          // prevent duplicates / overlapping dates
+          $thisDate = new DateTime($data[0]);
+          if ($thisDate <= $newestDate) {
+            continue;
+          }
           $historic_rates[] = $data;
         }
         fclose($handle);
@@ -185,22 +187,39 @@
       // calculate future inflation
       while ($currentDate->format("Y") < 2100) {
         // calculate annualized inflation rate for today at current block height
-        $currentBlockEra = floor($currentHeight / 210000);
-        $currentBlockReward = 50 * (0.5 ** currentBlockEra);
+        $currentBlockEra = ceil($currentHeight / 210000);
+        $currentBlockReward = 50 * (0.5 ** ($currentBlockEra - 1));
         $currentInflationRate = ($currentBlockReward * 144 * 365) / $currentSupply;
 
-        $historic_rates[] = array($currentDate->format("Y-m-d"), $currentInflationRate);
+        // prevent duplicate dates
+        $lastDate = new DateTime($historic_rates[count($historic_rates) - 1][0]);
+        $lastDate->add(new DateInterval('P1D'));
+        if ($currentDate > $lastDate) {
+          $historic_rates[] = array($currentDate->format("Y-m-d"), $currentInflationRate);
+        }
 
         // add another day, 144 blocks, and day's worth of block subsidies
         $currentHeight += 144;
         $currentSupply += $currentBlockReward * 144;
         $currentDate->add(new DateInterval('P1D'));
       }
-      //print_r($historic_rates);
-      echo "var rates = " . json_encode($historic_rates) . ";\n";
+
+      // build the JSON required for Plotly
+      $xValues = array();
+      $yValues = array();
+      foreach ($historic_rates as $rate) {
+        $xValues[] = '"' . substr($rate[0], 0, 10) . '"'; // truncate any timestamp data from 2009-02-01T00:00:00Z to Y-m-d
+        $yValues[] = '"' . ($rate[1]*100) . '"';
+      }
+      $chartJSON = '[{"line": {"color": "rgb(31, 119, 180)"}, "name": "Bitcoin Annualized Monetary Supply Inflation Rate (%)", "type": "scatter", "x": ['
+                    . implode(",", $xValues)
+                    . '], "y": ['
+                    . implode(",", $yValues)
+                    . "]}]";
 ?>
       // Create chart
-      Plotly.newPlot('chart', [rates], layout, {responsive: true});
+
+      Plotly.newPlot('chart', <?= $chartJSON ?>, layout, {responsive: true});
     </script>
   </body>
 </html>

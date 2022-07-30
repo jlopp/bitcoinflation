@@ -10,7 +10,15 @@
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Bitcoinflation" />
     <meta name="twitter:description" content="Tracking the inflation rate of Bitcoin's money supply." />
-    <meta name="twitter:image" content="" />
+    <meta name="twitter:image" content="https://www.lopp.net/bitcoinflation/screenshot.png" />
+    <meta name="twitter:site" content="@lopp" />
+    <meta name="twitter:creator" content="@lopp" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:description" content="Tracking the inflation rate of Bitcoin's money supply." />
+    <meta property="og:image" content="https://www.lopp.net/bitcoinflation/screenshot.png" />
+    <meta property="og:url" content="https://www.lopp.net/bitcoinflation/" />
+    <meta property="og:title" content="Bitcoinflation" />
 
     <script>
       window.PlotlyConfig = {MathJaxConfig: 'local'};
@@ -217,8 +225,6 @@
                     . implode(",", $yValues)
                     . "]}]";
 ?>
-      // Create chart
-
       Plotly.newPlot('chart', <?= $chartJSON ?>, layout, {responsive: true});
     </script>
   </body>

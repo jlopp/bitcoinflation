@@ -130,67 +130,24 @@
 
 <?php
       // Load historical inflation data from CSV
-      $historic_rates = array();
-      if (($handle = fopen("historic-btc-inflation-rate.csv", "r")) !== FALSE) {
-        // throw away header row
-        fgetcsv($handle, 1000, ",");
-
-        while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
-          $historic_rates[] = $data;
-        }
-        fclose($handle);
-      } else {
-        echo "Failed to read historic inflation rate CSV file!";
+      $json = file_get_contents("historic-btc-inflation-rate.json");
+      if ($json === FALSE) {
+        echo "Failed to read historic inflation rate json file!";
         exit(1);
       }
+      $rates = json_decode($json, true);
+      $historic_rates = array(); // formatted for chart
 
-      // determine unix timestamp in seconds of last day in static CSV for next API call
-      $newestDate = new DateTime($historic_rates[count($historic_rates) - 1][0]);
-      $timestamp = $newestDate->getTimestamp();
-
-      // Fill in gap between last historical CSV data and today from glassnode API
-      if (($handle = fopen("https://api.glassnode.com/v1/metrics/supply/inflation_rate?a=btc&api_key=2CU0VqMuRLqcqbD3MLUK1tx02Zy&i=24h&f=csv&timestamp_format=humanized&s=$timestamp", "r")) !== FALSE) {
-        // throw away header row
-        fgetcsv($handle, 1000, ",");
-        while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
-          // prevent duplicates / overlapping dates
-          $thisDate = new DateTime($data[0]);
-          if ($thisDate <= $newestDate) {
-            continue;
-          }
-          $historic_rates[] = $data;
-        }
-        fclose($handle);
-      } else {
-        echo "Failed to read inflation rate data from glassnode!";
-        exit(1);
+      foreach ($rates as $rate) {
+        $rateDate = new DateTime();
+        $rateDate->setTimestamp($rate['t']);
+        $historic_rates[] = array($rateDate->format("Y-m-d"), $rate['v']);
       }
 
-      // Fill in future projected inflation rate based upon mining subsidy up until Jan 1, 2100
-      $currentHeight = 0;
-      if (($handle = fopen("https://blockstream.info/api/blocks/tip/height", "r")) !== FALSE) {
-        $currentHeight = fgetcsv($handle, 1000, ",")[0];
-        fclose($handle);
-      } else {
-        echo "Failed to read current block height from blockstream!";
-        exit(1);
-      }
-
+      $currentHeight = 808361; // 9.19.2023 0:00 GMT
+      $currentSupply = 19489541; // 9.19.2023 0:00 GMT
       $currentDate = new DateTime();
-      $currentDate = $currentDate->sub(new DateInterval('P3D'));
-      $timestamp = $currentDate->getTimestamp();
-
-      // determine current supply; use the most recent value
-      $currentSupply = 0;
-      if (($handle = fopen("https://api.glassnode.com/v1/metrics/supply/current?a=btc&api_key=2CU0VqMuRLqcqbD3MLUK1tx02Zy&i=24h&f=csv&timestamp_format=humanized&s=$timestamp", "r")) !== FALSE) {
-        while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
-          $currentSupply = $data[1];
-        }
-        fclose($handle);
-      } else {
-        echo "Failed to read current money supply from glassnode!";
-        exit(1);
-      }
+      $currentDate->setTimestamp(1695081600);
 
       // calculate future inflation
       while ($currentDate->format("Y") < 2100) {

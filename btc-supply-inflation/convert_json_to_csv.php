@@ -6,7 +6,7 @@
 // https://api.glassnode.com/v1/metrics/supply/inflation_rate?a=BTC&i=24h&referrer=charts
 
 $output = "timestamp,value\n";
-$inflationJson = json_decode(file_get_contents("inflation_rate.json"));
+$inflationJson = json_decode(file_get_contents("historic_btc_inflation_rate.json"));
 
 foreach ($inflationJson as $day) {
 	if ($day->v == null)

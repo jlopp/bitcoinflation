@@ -11,184 +11,21 @@
     <meta name="twitter:title" content="Bitcoinflation" />
     <meta name="twitter:description" content="Tracking the inflation rate of Bitcoin's money supply." />
     <meta name="twitter:image" content="" />
-
-    <script type="text/javascript">
-      window.PlotlyConfig = {MathJaxConfig: 'local'};
-    </script>
-    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/danfojs@1.1.0/lib/bundle.min.js"></script>
-
   </head>
 
   <body>
-    <div id="chart" class="plotly-graph-div" style="height:100%; width:100%;"></div>
-    <script type="text/javascript">
-      var layout = {
+    <center>
+      <a href="./btc-supply-inflation/">Bitcoin Supply Inflation</a><br/>
+      <img src="./btc-supply-inflation/screenshot.png" /><br/>
 
-        paper_bgcolor: 'transparent',
-        plot_bgcolor: 'transparent',
+      <a href="./btc-usd-m1-adjusted/">Bitcoin Supply Adjusted to USD M1 Supply</a><br/>
+      <img src="./btc-usd-m1-adjusted/exchange-rate-2009-m1.png" /><br/>
 
+      <a href="./btc-usd-m2-adjusted/">Bitcoin Supply Adjusted to USD M2 Supply</a>
+      <img src="./btc-usd-m2-adjusted/exchange-rate-m2-adjusted.png" /><br/>
 
-        // chart dimensions responsive, see CSS
-        // height: 700,
-        margin: { l: 50, r: 50, b: 45, t: 25, pad: 0 },
-
-
-        hovermode: 'closest',
-        showlegend: true,
-
-
-        legend: {
-          orientation: "h",
-          x: 0.5,
-          xanchor: "center",
-        },
-
-
-       // X-axis styling
-        xaxis: {
-
-          range: ['2009-01-03','2100-01-01'],
-
-          showgrid: false,
-          //autorange: true,
-          //rangeslider: {range: ['2019-01-03 12:00', '2019-02-15 12:00']},
-
-          // vertical crosshair
-          showspikes:true,
-          spikemode:'across',
-          spikethickness:0.5,
-          spikecolor:'#333',
-          spikedash:'line',
-        },
-
-      // Y-axis styling
-        yaxis: {
-
-          title:       '',
-          type:        'log',
-          hoverformat: '.4r',
-          titlefont: {
-              family: 'Open Sans, Arial',
-              weight: 500,
-              size: 12,
-              color: '#666'
-          },
-          tickfont: {
-            size:9,
-            color: '#666',
-          },
-          tickwidth: 5,
-          ticklen: 5,
-          tickcolor: '#999',
-          dtick: 1,
-
-          showgrid: false,
-          //showgrid: false,
-
-          range: [-0.5,3.5],
-
-
-          zeroline: false,
-
-          // horizontal crosshair
-          showspikes:true,
-          spikemode:'across',
-          spikethickness:0.5,
-          spikecolor:'#333',
-          spikedash:'line',
-        }
-      }
-
-      var inflation = {
-         x: [],
-         y: [],
-         marker: {
-            opacity: 0
-         },
-         line: {
-            color:'',
-            width: 1,
-            dash: ''
-         },
-         opacity:0.75,
-            showlegend:true,
-
-         name:'Inflation Rate',   hoverinfo:'name+y',
-
-         yaxis:'y',
-
-         hoverlabel: {
-            bordercolor:'#FFF',
-            font: { family: 'Open Sans, Arial', weight: 500, size: 10, },
-         },
-      }
-
-      // Load historical inflation data from CSV
-      //https://jlopp.github.io/bitcoinflation/historic-btc-inflation-rate.csv
-      async function getInflationRates() {
-
-        var historic_rates = await dfd.readCSV("https://jlopp.github.io/bitcoinflation/historic-btc-inflation-rate.csv")
-          .then(df => {
-              return df.values;
-          }).catch(err => {
-              console.log(err);
-          });
-
-        // determine unix timestamp in seconds of last day in static CSV for next API call
-        var newestDate = new Date(historic_rates[historic_rates.length - 1][0]);
-        var timestamp = Math.floor(newestDate.getTime() / 1000);
-
-        // Fill in gap between last historical CSV data and today from glassnode API
-        var newer_rates = await dfd.readCSV("https://api.glassnode.com/v1/metrics/supply/inflation_rate?a=btc&api_key=2CU0VqMuRLqcqbD3MLUK1tx02Zy&i=24h&f=csv&timestamp_format=humanized&s=" + timestamp)
-          .then(df => {
-            return df.values;
-          }).catch(err => {
-              console.log(err);
-          });
-
-        // add new rates to historic rates array
-        newer_rates.forEach(element => historic_rates.push(element));
-
-        // Fill in future projected inflation rate based upon mining subsidy up until Jan 1, 2100
-        var currentHeight = await dfd.readCSV("https://blockstream.info/api/blocks/tip/height")
-          .then(df => {
-            return df.values;
-          }).catch(err => {
-              console.log(err);
-          });
-
-        var currentDate = new Date();
-        currentDate.setDate(currentDate.getDate() - 3);
-        var nowTimestamp = Math.floor(currentDate.getTime() / 1000);
-        // determine current supply
-        var currentSupply = await dfd.readCSV("https://api.glassnode.com/v1/metrics/supply/current?a=btc&api_key=2CU0VqMuRLqcqbD3MLUK1tx02Zy&i=24h&f=csv&timestamp_format=humanized&s=" + nowTimestamp)
-          .then(df => {
-            // return the most recent value
-            return df.values[df.values.length - 1][1];
-          }).catch(err => {
-              console.log(err);
-          });
-
-        // calculate future inflation
-        while (currentDate.getYear() < 2100) {
-          // calculate annualized inflation rate for today at current block height
-          var currentBlockEra = Math.floor(currentHeight / 210000);
-          var currentBlockReward = 50 * Math.pow(0.5, currentBlockEra);
-          var currentInflationRate = (currentBlockReward * 144 * 365) / currentSupply;
-
-          historic_rates.push(array(currentDate.format("Y-M-D"), currentInflationRate));
-
-          // add another 24 hours and 144 blocks
-          currentHeight += 144;
-          currentSupply += currentBlockReward * 144;
-          currentDate.addDay();
-        }
-      }
-
-      var rates = getInflationRates();
-      // Create chart
-      Plotly.newPlot('chart', [rates], layout, {responsive: true});
-    </script>
+      <a href="./btc-usd-m3-adjusted/">Bitcoin Supply Adjusted to USD M3 Supply</a>
+      <img src="./btc-usd-m3-adjusted/exchange-rate-m3-adjusted.png" /><br/>
+    </center>
   </body>
 </html>

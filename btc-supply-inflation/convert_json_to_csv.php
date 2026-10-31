@@ -1,12 +1,12 @@
 <?php
-// This script takes a historical json snapshot of bitcoin supply inflation rates
-// from glassnode and converts it to a CSV for bitcoinflation
-
-// update CSV from https://studio.glassnode.com/charts/supply.InflationRate?a=BTC
-// https://api.glassnode.com/v1/metrics/supply/inflation_rate?a=BTC&i=24h&referrer=charts
+// This script converts the historical bitcoin supply inflation rate JSON
+// (produced by update_data.py from the free CoinMetrics community API)
+// into a CSV for bitcoinflation.
+//
+// The JSON is refreshed by running `python3 update_data.py` from the repo root.
 
 $output = "timestamp,value\n";
-$inflationJson = json_decode(file_get_contents("historic_btc_inflation_rate.json"));
+$inflationJson = json_decode(file_get_contents("historic-btc-inflation-rate.json"));
 
 foreach ($inflationJson as $day) {
 	if ($day->v == null)

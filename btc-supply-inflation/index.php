@@ -144,16 +144,39 @@
         $historic_rates[] = array($rateDate->format("Y-m-d"), $rate['v']);
       }
 
-      $currentHeight = 808361; // 9.19.2023 0:00 GMT
+      // anchor the projection on the most recent supply snapshot written by
+      // update_data.py (falls back to a 2023-09-19 snapshot if it is missing)
       $currentSupply = 19489541; // 9.19.2023 0:00 GMT
       $currentDate = new DateTime();
       $currentDate->setTimestamp(1695081600);
+      $latest = @file_get_contents("latest-supply.json");
+      if ($latest !== FALSE) {
+        $snapshot = json_decode($latest, true);
+        if ($snapshot !== NULL && isset($snapshot["t"], $snapshot["supply"])) {
+          $currentDate->setTimestamp($snapshot["t"]);
+          $currentSupply = $snapshot["supply"];
+        }
+      }
+
+      // Bitcoin halving dates (UTC); the block subsidy is derived from the
+      // current date so the projection needs no external block-height lookup.
+      $halvingDates = array();
+      $halving = new DateTime('2012-11-28');
+      for ($i = 0; $i < 32; $i++) {
+        $halvingDates[] = clone $halving;
+        $halving->add(new DateInterval('P1461D')); // ~4 years between halvings
+      }
 
       // calculate future inflation
       while ($currentDate->format("Y") < 2100) {
-        // calculate annualized inflation rate for today at current block height
-        $currentBlockEra = ceil($currentHeight / 210000);
-        $currentBlockReward = 50 * (0.5 ** ($currentBlockEra - 1));
+        // derive the block subsidy from how many halvings have occurred
+        $halvingsPassed = 0;
+        foreach ($halvingDates as $halvingDate) {
+          if ($currentDate >= $halvingDate) {
+            $halvingsPassed++;
+          }
+        }
+        $currentBlockReward = 50 / (2 ** $halvingsPassed);
         $currentInflationRate = ($currentBlockReward * 144 * 365) / $currentSupply;
 
         // prevent duplicate dates
@@ -163,8 +186,7 @@
           $historic_rates[] = array($currentDate->format("Y-m-d"), $currentInflationRate);
         }
 
-        // add another day, 144 blocks, and day's worth of block subsidies
-        $currentHeight += 144;
+        // add another day and the day's worth of block subsidies
         $currentSupply += $currentBlockReward * 144;
         $currentDate->add(new DateInterval('P1D'));
       }

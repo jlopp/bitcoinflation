@@ -65,15 +65,22 @@
 
       // multiply by ~1.478 to re-adjust index to Jan 2009
       $indexAdjustmentMultiple = 100 / $m3_index[0][1];
-      $currentM3 = 1;
+
+      // index the M3 values by month; the series lags by a few months, so keep
+      // using the most recent value once the index runs out of data
+      $m3ByMonth = array();
+      foreach ($m3_index as $entry) {
+        $m3ByMonth[$entry[0]] = $entry[1];
+      }
 
       // build the JSON required for Plotly
       $xValues = array();
       $yValues = array();
+      $currentM3 = 1;
       foreach ($exchange_rates as $rate) {
-        // m3 index lags by several months; keep using most recent if we run out of data
-        if (count($m3_index) > 0) {
-            $currentM3 = array_shift($m3_index)[1] / 100;
+        $month = substr($rate[0], 0, 7);
+        if (isset($m3ByMonth[$month])) {
+          $currentM3 = $m3ByMonth[$month] / 100;
         }
         $adjustedExchangeRate = $rate[1] / ($currentM3 * $indexAdjustmentMultiple);
 
@@ -81,22 +88,16 @@
         $yValues[] = '"' . $adjustedExchangeRate . '"';
       }
 
-      // calculate the realtime exchange rate
+      // calculate the realtime exchange rate (free Coinbase spot price, no API key)
       $currentExchangeRate = 0;
       $adjustedCurrentExchangeRate = 0;
-      $now = new DateTime();
-      $now = $now->sub(new DateInterval('PT2H'));
-      $timestamp = $now->getTimestamp();
-      if (($handle = fopen("https://api.glassnode.com/v1/metrics/market/price_usd_close?a=btc&api_key=2CU0VqMuRLqcqbD3MLUK1tx02Zy&i=1h&f=csv&timestamp_format=humanized&s=$timestamp", "r")) !== FALSE) {
-        // throw away header row
-        fgetcsv($handle, 1000, ",");
-        while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
-          $currentExchangeRate = $data[1];
-        }
+      $spot = @file_get_contents("https://api.coinbase.com/v2/prices/BTC-USD/spot");
+      $spotData = $spot === FALSE ? NULL : json_decode($spot, true);
+      if ($spotData !== NULL && isset($spotData["data"]["amount"])) {
+        $currentExchangeRate = (float) $spotData["data"]["amount"];
         $adjustedCurrentExchangeRate = number_format($currentExchangeRate / ($currentM3 * $indexAdjustmentMultiple));
-        fclose($handle);
       } else {
-        echo "Failed to read realtime exchange rate data from glassnode!";
+        echo "Failed to read realtime exchange rate data from Coinbase!";
         exit(1);
       }
 ?>

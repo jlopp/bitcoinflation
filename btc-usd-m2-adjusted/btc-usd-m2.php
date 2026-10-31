@@ -66,11 +66,22 @@
       // this is the value that will be adjusted monthly to M2 supply
       $startingM2 = $m2_supply[0][1];
 
+      // index the M2 supply by month so price and supply stay aligned even if
+      // one series is missing a month; carry the last known value forward
+      $m2ByMonth = array();
+      foreach ($m2_supply as $entry) {
+        $m2ByMonth[substr($entry[0], 0, 7)] = $entry[1];
+      }
+
       // build the JSON required for Plotly
       $xValues = array();
       $yValues = array();
+      $currentM2 = $startingM2;
       foreach ($exchange_rates as $rate) {
-        $currentM2 = array_shift($m2_supply)[1];
+        $month = substr($rate[0], 0, 7);
+        if (isset($m2ByMonth[$month])) {
+          $currentM2 = $m2ByMonth[$month];
+        }
         $m2Delta = $startingM2 / $currentM2;
         $adjustedExchangeRate = $rate[1] * $m2Delta;
 
@@ -78,22 +89,16 @@
         $yValues[] = '"' . $adjustedExchangeRate . '"';
       }
 
-      // calculate the realtime exchange rate
+      // calculate the realtime exchange rate (free Coinbase spot price, no API key)
       $currentExchangeRate = 0;
       $adjustedCurrentExchangeRate = 0;
-      $now = new DateTime();
-      $now = $now->sub(new DateInterval('PT2H'));
-      $timestamp = $now->getTimestamp();
-      if (($handle = fopen("https://api.glassnode.com/v1/metrics/market/price_usd_close?a=btc&api_key=2CU0VqMuRLqcqbD3MLUK1tx02Zy&i=1h&f=csv&timestamp_format=humanized&s=$timestamp", "r")) !== FALSE) {
-        // throw away header row
-        fgetcsv($handle, 1000, ",");
-        while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
-          $currentExchangeRate = $data[1];
-        }
+      $spot = @file_get_contents("https://api.coinbase.com/v2/prices/BTC-USD/spot");
+      $spotData = $spot === FALSE ? NULL : json_decode($spot, true);
+      if ($spotData !== NULL && isset($spotData["data"]["amount"])) {
+        $currentExchangeRate = (float) $spotData["data"]["amount"];
         $adjustedCurrentExchangeRate = number_format($currentExchangeRate * $m2Delta);
-        fclose($handle);
       } else {
-        echo "Failed to read realtime exchange rate data from glassnode!";
+        echo "Failed to read realtime exchange rate data from Coinbase!";
         exit(1);
       }
 ?>

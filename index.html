@@ -1,34 +1,401 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <title>Bitcoinflation</title>
+    <meta charset="utf-8" />
+    <title>Bitcoinflation — A Collection of Unique Bitcoin Price Charts</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="keywords" content="bitcoin, inflation" />
     <meta name="Robots" content="index,follow" />
-    <meta name="description" content="Tracking the inflation rate of Bitcoin's money supply" />
+    <meta
+      name="description"
+      content="Tracking the inflation rate of Bitcoin's money supply and its exchange rate adjusted for the growth of fiat money."
+    />
 
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Bitcoinflation" />
-    <meta name="twitter:description" content="Tracking the inflation rate of Bitcoin's money supply." />
+    <meta
+      name="twitter:description"
+      content="Tracking the inflation rate of Bitcoin's money supply."
+    />
     <meta name="twitter:image" content="" />
+    <meta name="twitter:site" content="@lopp" />
+    <meta name="twitter:creator" content="@lopp" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Bitcoinflation" />
+    <meta
+      property="og:description"
+      content="Tracking the inflation rate of Bitcoin's money supply."
+    />
+    <meta property="og:image" content="" />
+    <meta property="og:url" content="https://www.lopp.net/bitcoinflation/" />
+
+    <style>
+      :root {
+        --bg: #f6f7f9;
+        --bg-card: #ffffff;
+        --text: #16181d;
+        --text-muted: #5b616e;
+        --accent: #f7931a; /* bitcoin orange */
+        --accent-soft: rgba(247, 147, 26, 0.12);
+        --border: #e4e6eb;
+        --shadow: 0 1px 2px rgba(16, 18, 22, 0.04), 0 8px 24px rgba(16, 18, 22, 0.06);
+        --shadow-hover: 0 2px 4px rgba(16, 18, 22, 0.06), 0 16px 40px rgba(16, 18, 22, 0.12);
+        --radius: 14px;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0e1013;
+          --bg-card: #171a1f;
+          --text: #ecedef;
+          --text-muted: #9aa0ab;
+          --accent: #f7931a;
+          --accent-soft: rgba(247, 147, 26, 0.16);
+          --border: #262a31;
+          --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
+          --shadow-hover: 0 2px 4px rgba(0, 0, 0, 0.5), 0 16px 40px rgba(0, 0, 0, 0.5);
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        -webkit-text-size-adjust: 100%;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+        line-height: 1.5;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      .wrap {
+        max-width: 1120px;
+        margin: 0 auto;
+        padding: 0 20px;
+      }
+
+      /* ---------- Header ---------- */
+      header.site {
+        padding: 56px 0 28px;
+        text-align: center;
+      }
+
+      .logo {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        text-decoration: none;
+        color: inherit;
+      }
+
+      .logo .mark {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: var(--accent);
+        color: #fff;
+        display: grid;
+        place-items: center;
+        font-weight: 700;
+        font-size: 20px;
+        line-height: 1;
+      }
+
+      .logo h1 {
+        margin: 0;
+        font-size: clamp(1.6rem, 4vw, 2.2rem);
+        letter-spacing: -0.02em;
+        font-weight: 700;
+      }
+
+      header.site p.tagline {
+        max-width: 620px;
+        margin: 14px auto 0;
+        color: var(--text-muted);
+        font-size: 1.02rem;
+      }
+
+      /* ---------- Grid ---------- */
+      main {
+        padding-bottom: 64px;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 22px;
+        margin-top: 8px;
+      }
+
+      /* ---------- Card ---------- */
+      .card {
+        display: flex;
+        flex-direction: column;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        overflow: hidden;
+        text-decoration: none;
+        color: inherit;
+        box-shadow: var(--shadow);
+        transition: transform 0.16s ease, box-shadow 0.16s ease,
+          border-color 0.16s ease;
+      }
+
+      .card:hover,
+      .card:focus-visible {
+        transform: translateY(-3px);
+        box-shadow: var(--shadow-hover);
+        border-color: var(--accent);
+        outline: none;
+      }
+
+      .thumb {
+        position: relative;
+        aspect-ratio: 16 / 9;
+        background: linear-gradient(135deg, var(--accent-soft), transparent 70%),
+          var(--bg);
+        overflow: hidden;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .thumb img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: center;
+        display: block;
+        transition: transform 0.35s ease;
+      }
+
+      .card:hover .thumb img,
+      .card:focus-visible .thumb img {
+        transform: scale(1.04);
+      }
+
+      .card-body {
+        padding: 16px 18px 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        flex: 1;
+      }
+
+      .card h2 {
+        margin: 0;
+        font-size: 1.06rem;
+        font-weight: 650;
+        letter-spacing: -0.01em;
+        line-height: 1.3;
+      }
+
+      .card p {
+        margin: 0;
+        font-size: 0.9rem;
+        color: var(--text-muted);
+        flex: 1;
+      }
+
+      .card .cta {
+        margin-top: 6px;
+        font-size: 0.88rem;
+        font-weight: 600;
+        color: var(--accent);
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .card .cta::after {
+        content: "→";
+        transition: transform 0.16s ease;
+      }
+
+      .card:hover .cta::after,
+      .card:focus-visible .cta::after {
+        transform: translateX(3px);
+      }
+
+      /* ---------- Tag ---------- */
+      .tag {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        padding: 3px 8px;
+        border-radius: 999px;
+        background: rgba(10, 12, 16, 0.72);
+        color: #fff;
+        backdrop-filter: blur(4px);
+      }
+
+      /* ---------- Footer ---------- */
+      footer.site {
+        border-top: 1px solid var(--border);
+        padding: 24px 0 40px;
+        color: var(--text-muted);
+        font-size: 0.85rem;
+        text-align: center;
+      }
+
+      footer.site a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+
+      footer.site a:hover {
+        text-decoration: underline;
+      }
+
+      @media (max-width: 480px) {
+        header.site {
+          padding: 36px 0 20px;
+        }
+        .grid {
+          gap: 16px;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        * {
+          transition: none !important;
+        }
+      }
+    </style>
   </head>
 
   <body>
-    <center>
-      <a href="./btc-supply-inflation/">Bitcoin Supply Inflation</a><br/>
-      <img src="./btc-supply-inflation/screenshot.png" /><br/>
+    <header class="site">
+      <div class="wrap">
+        <a class="logo" href="./">
+          <span class="mark" aria-hidden="true">₿</span>
+          <h1>Bitcoinflation</h1>
+        </a>
+        <p class="tagline">
+          A collection of unique Bitcoin price charts. Long-run price charts are
+          misleading when the value of the currency it is priced in keeps
+          changing — these charts correct for it.
+        </p>
+      </div>
+    </header>
 
-      <a href="./btc-global-m1-adjusted/">Bitcoin Supply Adjusted to Global M1 Supply</a><br/>
-      <img src="./btc-global-m1-adjusted/exchange-rate-global-m1.png" /><br/>
+    <main class="wrap">
+      <div class="grid">
+        <a class="card" href="./btc-supply-inflation/">
+          <div class="thumb">
+            <span class="tag">Supply</span>
+            <img
+              src="./btc-supply-inflation/screenshot.png"
+              alt="Chart of Bitcoin's historical and projected annualized monetary supply inflation rate"
+              loading="lazy"
+            />
+          </div>
+          <div class="card-body">
+            <h2>Bitcoin Supply Inflation</h2>
+            <p>
+              The historical actual inflation rate in realtime, alongside the
+              projected future rate derived from Bitcoin's issuance schedule.
+            </p>
+            <span class="cta">View chart</span>
+          </div>
+        </a>
 
-      <a href="./btc-global-m2-adjusted/">Bitcoin Supply Adjusted to Global M2 Supply</a>
-      <img src="./btc-global-m2-adjusted/exchange-rate-global-m2.png" /><br/>
+        <a class="card" href="./btc-global-m1-adjusted/">
+          <div class="thumb">
+            <span class="tag">M1</span>
+            <img
+              src="./btc-global-m1-adjusted/exchange-rate-global-m1.png"
+              alt="Bitcoin exchange rate adjusted for the growth of the global M1 money supply"
+              loading="lazy"
+            />
+          </div>
+          <div class="card-body">
+            <h2>Adjusted to Global M1 Supply</h2>
+            <p>
+              The BTC exchange rate, adjusted for the growth in the global M1
+              money supply of all currencies since January 2009.
+            </p>
+            <span class="cta">View chart</span>
+          </div>
+        </a>
 
-      <a href="./btc-global-m3-adjusted/">Bitcoin Supply Adjusted to Global M3 Supply</a>
-      <img src="./btc-global-m3-adjusted/exchange-rate-m3-adjusted.png" /><br/>
+        <a class="card" href="./btc-global-m2-adjusted/">
+          <div class="thumb">
+            <span class="tag">M2</span>
+            <img
+              src="./btc-global-m2-adjusted/exchange-rate-global-m2.png"
+              alt="Bitcoin exchange rate adjusted for the growth of the global M2 money supply"
+              loading="lazy"
+            />
+          </div>
+          <div class="card-body">
+            <h2>Adjusted to Global M2 Supply</h2>
+            <p>
+              The BTC exchange rate, adjusted for the growth in the global M2
+              money supply of all currencies since January 2009.
+            </p>
+            <span class="cta">View chart</span>
+          </div>
+        </a>
 
-      <a href="./cpi-adjusted-exchange-rate/">Bitcoin Exchange Rate in 2009 Dollars</a>
-      <img src="./cpi-adjusted-exchange-rate/exchange-rate-2009-dollars.png" /><br/>
-    </center>
+        <a class="card" href="./btc-global-m3-adjusted/">
+          <div class="thumb">
+            <span class="tag">M3</span>
+            <img
+              src="./btc-global-m3-adjusted/exchange-rate-m3-adjusted.png"
+              alt="Bitcoin exchange rate adjusted for the growth of the global M3 money supply"
+              loading="lazy"
+            />
+          </div>
+          <div class="card-body">
+            <h2>Adjusted to Global M3 Supply</h2>
+            <p>
+              The BTC exchange rate, adjusted for the growth in the global M3
+              money supply of all currencies since January 2009.
+            </p>
+            <span class="cta">View chart</span>
+          </div>
+        </a>
+
+        <a class="card" href="./cpi-adjusted-exchange-rate/">
+          <div class="thumb">
+            <span class="tag">CPI</span>
+            <img
+              src="./cpi-adjusted-exchange-rate/exchange-rate-2009-dollars.png"
+              alt="Bitcoin exchange rate expressed in January 2009 dollar value"
+              loading="lazy"
+            />
+          </div>
+          <div class="card-body">
+            <h2>Exchange Rate in 2009 Dollars</h2>
+            <p>
+              The BTC exchange rate expressed in the value of a January 2009
+              dollar, adjusted monthly using US CPI data.
+            </p>
+            <span class="cta">View chart</span>
+          </div>
+        </a>
+      </div>
+    </main>
+
+    <footer class="site">
+      <div class="wrap">
+        Data refreshed from free, key-less public APIs. Money supply and
+        exchange rate adjustments use
+        <a href="https://data-explorer.oecd.org/">OECD</a> and
+        <a href="https://data.bis.org/">BIS</a> data.
+      </div>
+    </footer>
   </body>
 </html>

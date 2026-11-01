@@ -1,22 +1,22 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <title>Bitcoinflation - Tracking the M2 Adjusted Bitcoin Exchange Rate in 2009 Dollars</title>
+    <title>Bitcoinflation - Tracking the Global M2 Adjusted Bitcoin Exchange Rate in 2009 Dollars</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="keywords" content="bitcoin, inflation" />
     <meta name="Robots" content="index,follow" />
-    <meta name="description" content="Tracking the M2 Adjusted Bitcoin Exchange Rate in 2009 Dollars" />
+    <meta name="description" content="Bitcoinflation - Tracking the Global M2 Adjusted Bitcoin Exchange Rate in 2009 Dollars" />
 
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Bitcoinflation" />
-    <meta name="twitter:description" content="Tracking the M2 Adjusted Bitcoin Exchange Rate in 2009 Dollars" />
-    <meta name="twitter:image" content="https://www.lopp.net/bitcoinflation/exchange-rate-2009-m2.png" />
+    <meta name="twitter:description" content="Bitcoinflation - Tracking the Global M2 Adjusted Bitcoin Exchange Rate in 2009 Dollars" />
+    <meta name="twitter:image" content="https://www.lopp.net/bitcoinflation/exchange-rate-global-m2.png" />
     <meta name="twitter:site" content="@lopp" />
     <meta name="twitter:creator" content="@lopp" />
 
     <meta property="og:type" content="website" />
-    <meta property="og:description" content="Tracking the M2 Adjusted Bitcoin Exchange Rate in 2009 Dollars" />
-    <meta property="og:image" content="https://www.lopp.net/bitcoinflation/exchange-rate-2009-m2.png" />
+    <meta property="og:description" content="Bitcoinflation - Tracking the Global M2 Adjusted Bitcoin Exchange Rate in 2009 Dollars" />
+    <meta property="og:image" content="https://www.lopp.net/bitcoinflation/exchange-rate-global-m2.png" />
     <meta property="og:url" content="https://www.lopp.net/bitcoinflation/" />
     <meta property="og:title" content="Bitcoinflation" />
 
@@ -32,19 +32,20 @@
     </style>
   </head>
 <?php
-      // Load historical M2 money supply data from CSV
-      // CSV is from https://fred.stlouisfed.org/series/M2NS
-      $m2_supply = array();
-      if (($handle = fopen("m2-supply.csv", "r")) !== FALSE) {
+      // Load the global M2 money supply, all currencies converted to USD.
+      // Built by update_data.py from OECD national money stocks + BIS month-end
+      // exchange rates, so the values are directly comparable across countries.
+      $money_supply = array();
+      if (($handle = fopen("global-money-supply-usd.csv", "r")) !== FALSE) {
         // throw away header row
         fgetcsv($handle, 1000, ",");
 
         while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
-          $m2_supply[] = $data;
+          $money_supply[] = $data;
         }
         fclose($handle);
       } else {
-        echo "Failed to read historic M2 supply CSV file!";
+        echo "Failed to read global money supply CSV file!";
         exit(1);
       }
 
@@ -63,27 +64,26 @@
         exit(1);
       }
 
-      // this is the value that will be adjusted monthly to M2 supply
-      $startingM2 = $m2_supply[0][1];
+      // the January 2009 supply that every later month is adjusted back to
+      $startingSupply = $money_supply[0][1];
 
-      // index the M2 supply by month so price and supply stay aligned even if
-      // one series is missing a month; carry the last known value forward
-      $m2ByMonth = array();
-      foreach ($m2_supply as $entry) {
-        $m2ByMonth[substr($entry[0], 0, 7)] = $entry[1];
+      // index the supply by month so price and supply stay aligned even if one
+      // series is missing a month; carry the last known value forward
+      $supplyByMonth = array();
+      foreach ($money_supply as $entry) {
+        $supplyByMonth[substr($entry[0], 0, 7)] = $entry[1];
       }
 
       // build the JSON required for Plotly
       $xValues = array();
       $yValues = array();
-      $currentM2 = $startingM2;
+      $currentSupply = $startingSupply;
       foreach ($exchange_rates as $rate) {
         $month = substr($rate[0], 0, 7);
-        if (isset($m2ByMonth[$month])) {
-          $currentM2 = $m2ByMonth[$month];
+        if (isset($supplyByMonth[$month])) {
+          $currentSupply = $supplyByMonth[$month];
         }
-        $m2Delta = $startingM2 / $currentM2;
-        $adjustedExchangeRate = $rate[1] * $m2Delta;
+        $adjustedExchangeRate = $rate[1] * ($startingSupply / $currentSupply);
 
         $xValues[] = '"' . $rate[0] . '"';
         $yValues[] = '"' . $adjustedExchangeRate . '"';
@@ -96,7 +96,8 @@
       $spotData = $spot === FALSE ? NULL : json_decode($spot, true);
       if ($spotData !== NULL && isset($spotData["data"]["amount"])) {
         $currentExchangeRate = (float) $spotData["data"]["amount"];
-        $adjustedCurrentExchangeRate = number_format($currentExchangeRate * $m2Delta);
+        $adjustedCurrentExchangeRate = number_format(
+          $currentExchangeRate * ($startingSupply / $currentSupply));
       } else {
         echo "Failed to read realtime exchange rate data from Coinbase!";
         exit(1);
@@ -104,10 +105,10 @@
 ?>
   <body>
     <p style="text-align:center">
-      If you're familiar with Bitcoin then you've surely seen a chart of its exchange rate. However, price charts over long periods of time are flawed because the value (and supply) of the dollar is not constant. This chart adjusts the USD value based upon the change in the M2 money supply that has occurred since January 2009 when Bitcoin was created; the USD value is adjusted monthly based upon <a href="https://fred.stlouisfed.org/series/M2NS">M2 data from the Federal Reserve</a>.
+      If you're familiar with Bitcoin then you've surely seen a chart of its exchange rate. However, price charts over long periods of time are flawed because the value (and supply) of fiat currencies is not constant. This chart adjusts the USD value based upon the change in the global M2 money supply of all currencies that has occurred since January 2009 when Bitcoin was created. Each country's money supply is converted to USD at its own exchange rate before being summed, so the aggregate is directly comparable across currencies; the USD value is adjusted monthly based upon <a href="https://data-explorer.oecd.org/">money supply data from the OECD</a> and <a href="https://data.bis.org/">exchange rate data from the BIS</a>.
     </p>
     <p style="text-align:center">
-      The current BTC exchange rate adjusted to the M2 supply of USD in January 2009 is $<strong><?php echo $adjustedCurrentExchangeRate; ?></strong>
+      The current BTC exchange rate adjusted to the global M2 supply of all currencies in January 2009 is $<strong><?php echo $adjustedCurrentExchangeRate; ?></strong>
     </p>
     <div id="chart" class="plotly-graph-div" style="height:100%; width:100%;"></div>
     <script>
@@ -191,7 +192,7 @@
          opacity:0.75,
             showlegend:true,
 
-         name:'Bitcoin Exchange Rate adjusted for USD M2',   hoverinfo:'name+y',
+         name:'Bitcoin Exchange Rate adjusted for Global M2',   hoverinfo:'name+y',
 
          yaxis:'y',
 
@@ -202,7 +203,7 @@
       }
 
 <?php
-      $chartJSON = '[{"line": {"color": "rgb(31, 119, 180)"}, "name": "Bitcoin Exchange Rate Adjusted for M2 of USD", "type": "scatter", "x": ['
+      $chartJSON = '[{"line": {"color": "rgb(31, 119, 180)"}, "name": "Bitcoin Exchange Rate Adjusted for Global M2 of All Currencies", "type": "scatter", "x": ['
                     . implode(",", $xValues)
                     . '], "y": ['
                     . implode(",", $yValues)

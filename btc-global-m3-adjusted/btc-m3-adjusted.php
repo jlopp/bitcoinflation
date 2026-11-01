@@ -32,19 +32,22 @@
     </style>
   </head>
 <?php
-      // Load historical global M3 money supply index from CSV
-      // CSV is from https://data.oecd.org/money/broad-money-m3.htm
-      $m3_index = array();
-      if (($handle = fopen("global_m3.csv", "r")) !== FALSE) {
+      // Load the global M3 money supply, all currencies converted to USD.
+      // M3 is narrow money plus broad money on a consistent basis, which is the
+      // closest available approximation of M3 across all reporting countries.
+      // Built by update_data.py from OECD national money stocks + BIS month-end
+      // exchange rates, so the values are directly comparable across countries.
+      $money_supply = array();
+      if (($handle = fopen("global-money-supply-usd.csv", "r")) !== FALSE) {
         // throw away header row
         fgetcsv($handle, 1000, ",");
 
         while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
-          $m3_index[] = $data;
+          $money_supply[] = $data;
         }
         fclose($handle);
       } else {
-        echo "Failed to read historic M3 index CSV file!";
+        echo "Failed to read global money supply CSV file!";
         exit(1);
       }
 
@@ -63,26 +66,26 @@
         exit(1);
       }
 
-      // multiply by ~1.478 to re-adjust index to Jan 2009
-      $indexAdjustmentMultiple = 100 / $m3_index[0][1];
+      // the January 2009 supply that every later month is adjusted back to
+      $startingSupply = $money_supply[0][1];
 
-      // index the M3 values by month; the series lags by a few months, so keep
-      // using the most recent value once the index runs out of data
-      $m3ByMonth = array();
-      foreach ($m3_index as $entry) {
-        $m3ByMonth[$entry[0]] = $entry[1];
+      // index the supply by month so price and supply stay aligned even if one
+      // series is missing a month; carry the last known value forward
+      $supplyByMonth = array();
+      foreach ($money_supply as $entry) {
+        $supplyByMonth[substr($entry[0], 0, 7)] = $entry[1];
       }
 
       // build the JSON required for Plotly
       $xValues = array();
       $yValues = array();
-      $currentM3 = 1;
+      $currentSupply = $startingSupply;
       foreach ($exchange_rates as $rate) {
         $month = substr($rate[0], 0, 7);
-        if (isset($m3ByMonth[$month])) {
-          $currentM3 = $m3ByMonth[$month] / 100;
+        if (isset($supplyByMonth[$month])) {
+          $currentSupply = $supplyByMonth[$month];
         }
-        $adjustedExchangeRate = $rate[1] / ($currentM3 * $indexAdjustmentMultiple);
+        $adjustedExchangeRate = $rate[1] * ($startingSupply / $currentSupply);
 
         $xValues[] = '"' . $rate[0] . '"';
         $yValues[] = '"' . $adjustedExchangeRate . '"';
@@ -95,7 +98,8 @@
       $spotData = $spot === FALSE ? NULL : json_decode($spot, true);
       if ($spotData !== NULL && isset($spotData["data"]["amount"])) {
         $currentExchangeRate = (float) $spotData["data"]["amount"];
-        $adjustedCurrentExchangeRate = number_format($currentExchangeRate / ($currentM3 * $indexAdjustmentMultiple));
+        $adjustedCurrentExchangeRate = number_format(
+          $currentExchangeRate * ($startingSupply / $currentSupply));
       } else {
         echo "Failed to read realtime exchange rate data from Coinbase!";
         exit(1);
@@ -103,10 +107,10 @@
 ?>
   <body>
     <p style="text-align:center">
-      If you're familiar with Bitcoin then you've surely seen a chart of its exchange rate. However, price charts over long periods of time are flawed because the value (and supply) of fiat currencies is not constant. This chart adjusts the USD value based upon the change in the global M3 money supply that has occurred since January 2009 when Bitcoin was created; the USD value is adjusted monthly based upon <a href="https://data.oecd.org/money/broad-money-m3.htm">M3 index data from the OECD</a>.
+      If you're familiar with Bitcoin then you've surely seen a chart of its exchange rate. However, price charts over long periods of time are flawed because the value (and supply) of fiat currencies is not constant. This chart adjusts the USD value based upon the change in the global M3 money supply of all currencies that has occurred since January 2009 when Bitcoin was created. Each country's money supply is converted to USD at its own exchange rate before being summed, so the aggregate is directly comparable across currencies; the USD value is adjusted monthly based upon <a href="https://data-explorer.oecd.org/">money supply data from the OECD</a> and <a href="https://data.bis.org/">exchange rate data from the BIS</a>.
     </p>
     <p style="text-align:center">
-      The current BTC exchange rate adjusted to the global M3 supply of all fiat currencies in January 2009 is $<strong><?php echo $adjustedCurrentExchangeRate; ?></strong>
+      The current BTC exchange rate adjusted to the global M3 supply of all currencies in January 2009 is $<strong><?php echo $adjustedCurrentExchangeRate; ?></strong>
     </p>
     <div id="chart" class="plotly-graph-div" style="height:100%; width:100%;"></div>
     <script>
@@ -190,7 +194,7 @@
          opacity:0.75,
             showlegend:true,
 
-         name:'Bitcoin Exchange Rate adjusted for USD M2',   hoverinfo:'name+y',
+         name:'Bitcoin Exchange Rate adjusted for Global M3',   hoverinfo:'name+y',
 
          yaxis:'y',
 
@@ -201,7 +205,7 @@
       }
 
 <?php
-      $chartJSON = '[{"line": {"color": "rgb(31, 119, 180)"}, "name": "Bitcoin Exchange Rate Adjusted for M2 of USD", "type": "scatter", "x": ['
+      $chartJSON = '[{"line": {"color": "rgb(31, 119, 180)"}, "name": "Bitcoin Exchange Rate Adjusted for Global M3 of All Currencies", "type": "scatter", "x": ['
                     . implode(",", $xValues)
                     . '], "y": ['
                     . implode(",", $yValues)

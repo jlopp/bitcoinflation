@@ -112,7 +112,9 @@ def build_monthly_price():
 
     body = "\n".join(rows) + "\n"
     for directory in ("btc-global-m1-adjusted", "btc-global-m2-adjusted",
-                      "btc-global-m3-adjusted", "cpi-adjusted-exchange-rate"):
+                      "btc-global-m3-adjusted", "cpi-adjusted-exchange-rate",
+                      "btc-in-gold", "btc-raw-vs-adjusted",
+                      "btc-in-real-goods"):
         write(os.path.join(directory, "monthly-btc-usd-exchange-rate.csv"), body)
 
 
@@ -146,6 +148,19 @@ def build_cpi():
         prev = value
     write("cpi-adjusted-exchange-rate/monthly-usd-inflation-rate.csv",
           "\n".join(rows) + "\n")
+
+    # USD purchasing power, indexed to 100 at January 2009: the inverse of the
+    # CPI index. A dollar buys less every year, and this is the series that
+    # makes the decay explicit.
+    base = None
+    pp_rows = ["Month,USD Purchasing Power (Jan 2009 = 100)"]
+    for date, value in series:
+        if date < "2009-01-01" or value <= 0:
+            continue
+        if base is None:
+            base = value
+        pp_rows.append(f"{date},{base / value * 100.0:.4f}")
+    write("usd-purchasing-power/purchasing-power.csv", "\n".join(pp_rows) + "\n")
 
 
 # --------------------------------------------------------------------------
@@ -336,6 +351,118 @@ def build_global_money():
               f"-> {aggregate[last][measure] / 1e6:,.2f}T USD ({grew:.2f}x)")
 
 
+def build_money_supply_growth():
+    """Year-over-year growth rate of the global money supply, per measure.
+
+    Reads the shared aggregate written by build_global_money() and converts
+    each level series into a 12-month percent change, so the chart shows the
+    rate of debasement rather than the level. Months whose year-ago value is
+    missing are skipped instead of interpolated, which is why the series
+    starts in 2010.
+    """
+    print("Global money supply year-over-year growth...")
+    levels = {}
+    with open(os.path.join(ROOT, "global-money-supply.csv")) as fh:
+        for row in csv.DictReader(fh):
+            levels[row["Month"][:7]] = {
+                "M1": float(row["M1"]),
+                "M2": float(row["M2"]),
+                "M3": float(row["M3"]),
+            }
+
+    months = sorted(levels)
+    rows = ["Month,Global M1 YoY %,Global M2 YoY %,Global M3 YoY %"]
+    for month in months:
+        prior = f"{int(month[:4]) - 1:04d}-{month[5:7]}"
+        if prior not in levels:
+            continue
+        values = []
+        for measure in ("M1", "M2", "M3"):
+            base = levels[prior][measure]
+            values.append((levels[month][measure] / base - 1.0) * 100.0
+                          if base > 0 else 0.0)
+        rows.append(f"{month}-01,{values[0]:.4f},{values[1]:.4f},{values[2]:.4f}")
+    write("global-money-supply-growth/global-money-supply-yoy.csv",
+          "\n".join(rows) + "\n")
+
+
+# --------------------------------------------------------------------------
+# Gold price (Yahoo Finance, key-less chart API)
+# --------------------------------------------------------------------------
+def build_gold_price():
+    """Month-end gold price in USD per troy ounce.
+
+    Yahoo's chart endpoint is key-less and returns front-month COMEX gold
+    (GC=F) back to 2000, which covers Bitcoin's whole history. The daily
+    series is requested explicitly with a period range: asking for
+    range=max down-samples to monthly bars that drop occasional months, while
+    a daily request has no gaps. Only the final trading day of each month is
+    kept so the series lines up with the month-end BTC close used everywhere
+    else.
+    """
+    print("Gold price (Yahoo Finance GC=F)...")
+    start = int(dt.datetime(2009, 1, 1, tzinfo=dt.UTC).timestamp())
+    end = int(dt.datetime.now(dt.UTC).timestamp())
+    raw = fetch("https://query1.finance.yahoo.com/v8/finance/chart/"
+                f"GC=F?period1={start}&period2={end}&interval=1d")
+    result = json.loads(raw)["chart"]["result"][0]
+    timestamps = result["timestamp"]
+    closes = result["indicators"]["quote"][0]["close"]
+
+    by_month = {}
+    for ts, close in zip(timestamps, closes):
+        if close is None:
+            continue
+        day = dt.datetime.fromtimestamp(ts, dt.UTC)
+        by_month[(day.year, day.month)] = (day.day, float(close))
+
+    rows = ["Month,Gold Price (USD per troy ounce)"]
+    for (year, month) in sorted(by_month):
+        rows.append(f"{year:04d}-{month:02d}-01,{by_month[(year, month)][1]:.2f}")
+    write("btc-in-gold/gold-price-usd.csv", "\n".join(rows) + "\n")
+
+
+# --------------------------------------------------------------------------
+# US median home price and average hourly earnings (FRED)
+# --------------------------------------------------------------------------
+def build_real_goods():
+    """US median new-home price and average hourly earnings, monthly.
+
+    The home price series is quarterly, so it is forward-filled onto the
+    monthly grid; both are carried forward when a month is missing so the
+    PHP pages can join them against the monthly BTC price without gaps.
+    """
+    print("US median home price (FRED MSPUS)...")
+    homes = fred_series("MSPUS")
+    print("US average hourly earnings (FRED CES0500000003)...")
+    wages = fred_series("CES0500000003")
+
+    def fill_monthly(series):
+        """Forward-fill a (date, value) series onto a continuous monthly grid."""
+        lookup = {date[:7]: value for date, value in series}
+        out = {}
+        last = None
+        month = series[0][0][:7]
+        end = series[-1][0][:7]
+        while month <= end:
+            if month in lookup:
+                last = lookup[month]
+            if last is not None:
+                out[month] = last
+            month = _month_after(month)
+        return out
+
+    homes_monthly = fill_monthly(homes)
+    wages_monthly = fill_monthly(wages)
+
+    months = sorted(set(homes_monthly) & set(wages_monthly))
+    rows = ["Month,Median New Home Price (USD),Average Hourly Earnings (USD)"]
+    for month in months:
+        rows.append(f"{month}-01,{homes_monthly[month]:.0f},{wages_monthly[month]:.2f}")
+    write("btc-in-real-goods/us-home-price-and-wages.csv",
+          "\n".join(rows) + "\n")
+
+
 # --------------------------------------------------------------------------
 # BTC supply inflation (CoinMetrics community API)
 # --------------------------------------------------------------------------
@@ -387,6 +514,9 @@ def main():
     build_monthly_price()
     build_cpi()
     build_global_money()
+    build_money_supply_growth()
+    build_gold_price()
+    build_real_goods()
     build_btc_inflation()
     print("done.")
 

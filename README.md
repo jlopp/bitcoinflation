@@ -11,10 +11,17 @@ A Collection of Unique Bitcoin Price Charts
 | Bitcoin Supply Adjusted to Global M2 Supply | `btc-global-m2-adjusted/` |
 | Bitcoin Supply Adjusted to Global M3 Supply | `btc-global-m3-adjusted/` |
 | Bitcoin Exchange Rate in 2009 Dollars (CPI) | `cpi-adjusted-exchange-rate/` |
+| Bitcoin Priced in Gold | `btc-in-gold/` |
+| Raw vs. Money Supply Adjusted | `btc-raw-vs-adjusted/` |
+| What One Bitcoin Buys (Homes & Hours of Work) | `btc-in-real-goods/` |
+| Global Money Supply Growth | `global-money-supply-growth/` |
+| Purchasing Power of the Dollar | `usd-purchasing-power/` |
 
 The three money supply charts all share one adjustment: the money supply of
 every reporting country, converted to USD at that country's own exchange rate
-and summed. See "Global money supply" below.
+and summed. See "Global money supply" below. The `btc-raw-vs-adjusted` chart
+reuses that same M3 adjustment, rebased so the plain and adjusted prices can
+share one axis.
 
 ## Updating the data
 
@@ -32,6 +39,10 @@ python3 update_data.py
 | `monthly-usd-inflation-rate.csv` | [FRED `CPIAUCNS`](https://fred.stlouisfed.org/series/CPIAUCNS), month-over-month % change |
 | `historic-btc-inflation-rate.json` / `.csv` | [CoinMetrics community API](https://docs.coinmetrics.io/api/v4/) `SplyCur` (daily supply) |
 | `latest-supply.json` | Anchor (date + supply) for the forward projection in the supply inflation chart |
+| `gold-price-usd.csv` | [Yahoo Finance](https://finance.yahoo.com/quote/GC=F/) chart API, front-month COMEX gold (`GC=F`), month-end close |
+| `us-home-price-and-wages.csv` | [FRED `MSPUS`](https://fred.stlouisfed.org/series/MSPUS) (median new-home sale price) and [FRED `CES0500000003`](https://fred.stlouisfed.org/series/CES0500000003) (average hourly earnings), forward-filled to monthly |
+| `global-money-supply-yoy.csv` | Year-over-year percent change of `global-money-supply.csv`, computed locally |
+| `purchasing-power.csv` | [FRED `CPIAUCNS`](https://fred.stlouisfed.org/series/CPIAUCNS) inverted and indexed to January 2009 |
 
 Each chart also shows a realtime spot price, fetched at request time from the
 free [Coinbase spot price API](https://api.coinbase.com/v2/prices/BTC-USD/spot).

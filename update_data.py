@@ -114,7 +114,7 @@ def build_monthly_price():
     for directory in ("btc-global-m1-adjusted", "btc-global-m2-adjusted",
                       "btc-global-m3-adjusted", "cpi-adjusted-exchange-rate",
                       "btc-in-gold", "btc-raw-vs-adjusted",
-                      "btc-in-real-goods"):
+                      "btc-in-real-goods", "btc-vs-sp500"):
         write(os.path.join(directory, "monthly-btc-usd-exchange-rate.csv"), body)
 
 
@@ -423,6 +423,39 @@ def build_gold_price():
 
 
 # --------------------------------------------------------------------------
+# S&P 500 monthly close (Yahoo Finance, key-less chart API)
+# --------------------------------------------------------------------------
+def build_sp500():
+    """Month-end S&P 500 close, the equity benchmark BTC is compared against.
+
+    Uses the same Yahoo chart endpoint as the gold price, but with a daily
+    request over the full period so no months are dropped by down-sampling;
+    only the final trading day of each month is kept. The index starts in
+    2005, which is well before the first priced BTC month.
+    """
+    print("S&P 500 (Yahoo Finance ^GSPC)...")
+    start = int(dt.datetime(2005, 1, 1, tzinfo=dt.UTC).timestamp())
+    end = int(dt.datetime.now(dt.UTC).timestamp())
+    raw = fetch("https://query1.finance.yahoo.com/v8/finance/chart/"
+                f"%5EGSPC?period1={start}&period2={end}&interval=1d")
+    result = json.loads(raw)["chart"]["result"][0]
+    timestamps = result["timestamp"]
+    closes = result["indicators"]["quote"][0]["close"]
+
+    by_month = {}
+    for ts, close in zip(timestamps, closes):
+        if close is None:
+            continue
+        day = dt.datetime.fromtimestamp(ts, dt.UTC)
+        by_month[(day.year, day.month)] = (day.day, float(close))
+
+    rows = ["Month,S&P 500 Close"]
+    for (year, month) in sorted(by_month):
+        rows.append(f"{year:04d}-{month:02d}-01,{by_month[(year, month)][1]:.2f}")
+    write("btc-vs-sp500/sp500-monthly-close.csv", "\n".join(rows) + "\n")
+
+
+# --------------------------------------------------------------------------
 # US median home price and average hourly earnings (FRED)
 # --------------------------------------------------------------------------
 def build_real_goods():
@@ -516,6 +549,7 @@ def main():
     build_global_money()
     build_money_supply_growth()
     build_gold_price()
+    build_sp500()
     build_real_goods()
     build_btc_inflation()
     print("done.")

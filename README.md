@@ -15,6 +15,7 @@ A Collection of Unique Bitcoin Price Charts
 | Bitcoin Exchange Rate in 2009 Dollars (CPI) | `cpi-adjusted-exchange-rate/` |
 | Bitcoin Priced in Gold | `btc-in-gold/` |
 | Raw vs. Money Supply Adjusted | `btc-raw-vs-adjusted/` |
+| Bitcoin Adjusted for the S&P 500 | `btc-vs-sp500/` |
 | What One Bitcoin Buys (Homes & Hours of Work) | `btc-in-real-goods/` |
 | Global Money Supply Growth | `global-money-supply-growth/` |
 | Purchasing Power of the Dollar | `usd-purchasing-power/` |
@@ -42,6 +43,7 @@ python3 update_data.py
 | `historic-btc-inflation-rate.json` / `.csv` | [CoinMetrics community API](https://docs.coinmetrics.io/api/v4/) `SplyCur` (daily supply) |
 | `latest-supply.json` | Anchor (date + supply) for the forward projection in the supply inflation chart |
 | `gold-price-usd.csv` | [Yahoo Finance](https://finance.yahoo.com/quote/GC=F/) chart API, front-month COMEX gold (`GC=F`), month-end close |
+| `sp500-monthly-close.csv` | [Yahoo Finance](https://finance.yahoo.com/quote/%5EGSPC/) chart API, S&P 500 index (`^GSPC`), month-end close |
 | `us-home-price-and-wages.csv` | [FRED `MSPUS`](https://fred.stlouisfed.org/series/MSPUS) (median new-home sale price) and [FRED `CES0500000003`](https://fred.stlouisfed.org/series/CES0500000003) (average hourly earnings), forward-filled to monthly |
 | `global-money-supply-yoy.csv` | Year-over-year percent change of `global-money-supply.csv`, computed locally |
 | `purchasing-power.csv` | [FRED `CPIAUCNS`](https://fred.stlouisfed.org/series/CPIAUCNS) inverted and indexed to January 2009 |

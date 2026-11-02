@@ -2,6 +2,8 @@
 
 A Collection of Unique Bitcoin Price Charts
 
+<img src="./screenshot.png">
+
 ## Charts
 
 | Chart | Directory |

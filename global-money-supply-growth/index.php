@@ -55,6 +55,7 @@
       window.PlotlyConfig = {MathJaxConfig: 'local'};
     </script>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="../scale-toggle.js"></script>
     <style>
       :root {
         --bg: #f6f7f9;
@@ -414,6 +415,7 @@
       }
 
       Plotly.newPlot('chart', [m1, m2, m3], layout, {responsive: true});
+      addYAxisScaleToggle('chart', { default: 'linear' });
     </script>
 
     <footer class="site">
